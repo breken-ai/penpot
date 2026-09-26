@@ -1,5 +1,5 @@
-import { Task, TaskHandler } from "../TaskHandler";
-import { ExecuteCodeTaskParams, ExecuteCodeTaskResultData } from "../../../common/src";
+import { Task, TaskHandler } from "../TaskHandler.ts";
+import type { ExecuteCodeTaskParams, ExecuteCodeTaskResultData } from "../../../common/src";
 import { PenpotUtils } from "../PenpotUtils.ts";
 
 /**
@@ -13,14 +13,6 @@ class ExecuteCodeTaskConsole {
      * Accumulated log output from all console method calls.
      */
     private logOutput: string = "";
-
-    /**
-     * Resets the accumulated log output to empty string.
-     * Should be called before each code execution to start with clean logs.
-     */
-    resetLog(): void {
-        this.logOutput = "";
-    }
 
     /**
      * Gets the accumulated log output from all console method calls.
@@ -162,24 +154,40 @@ class ExecuteCodeTaskConsole {
  *
  * Maintains a persistent context object that preserves state between code executions
  * and captures all console output during execution.
+ *
+ * Executions may overlap in time (the MCP server does not serialize tool calls), so each
+ * execution captures its console output separately, and the execution flags are set for
+ * as long as any execution is running.
  */
 export class ExecuteCodeTaskHandler extends TaskHandler<ExecuteCodeTaskParams> {
     readonly taskType = "executeCode";
 
     /**
      * Persistent context object that maintains state between code executions.
-     * Contains the penpot API, storage object, and custom console implementation.
+     * Contains the penpot API, the storage object and the Penpot utilities; each execution
+     * adds its own console.
      */
     private readonly context: any;
+
+    /**
+     * Number of executions that are currently running.
+     */
+    private runningExecutions = 0;
+
+    /**
+     * Flag values in effect before the first of the currently running executions started,
+     * restored once the last one finishes.
+     */
+    private originalNaturalChildOrdering: any;
+    private originalThrowValidationErrors: any;
 
     constructor() {
         super();
 
-        // initialize context, making penpot, penpotUtils, storage and the custom console available
+        // initialize context, making penpot, penpotUtils and storage available
         this.context = {
             penpot: penpot,
             storage: {},
-            console: new ExecuteCodeTaskConsole(),
             penpotUtils: PenpotUtils,
         };
     }
@@ -190,17 +198,19 @@ export class ExecuteCodeTaskHandler extends TaskHandler<ExecuteCodeTaskParams> {
             return;
         }
 
-        this.context.console.resetLog();
-
-        const context = this.context;
+        // capture this execution's console output separately from overlapping executions
+        const taskConsole = new ExecuteCodeTaskConsole();
+        const context = { ...this.context, console: taskConsole };
         const code = task.params.code;
 
         // set the flags naturalChildOrdering and throwValidationErrors to true during code execution.
-        let originalNaturalChildOrdering: any, originalThrowValidationErrors: any;
         if (penpot.flags) {
-            originalNaturalChildOrdering = penpot.flags.naturalChildOrdering;
+            if (this.runningExecutions === 0) {
+                this.originalNaturalChildOrdering = penpot.flags.naturalChildOrdering;
+                this.originalThrowValidationErrors = penpot.flags.throwValidationErrors;
+            }
+            this.runningExecutions++;
             penpot.flags.naturalChildOrdering = true;
-            originalThrowValidationErrors = penpot.flags.throwValidationErrors;
             penpot.flags.throwValidationErrors = true;
         } else {
             throw new Error(
@@ -231,9 +241,12 @@ export class ExecuteCodeTaskHandler extends TaskHandler<ExecuteCodeTaskParams> {
                 return fn(...Object.values(ctx));
             })(context);
         } finally {
-            // restore the original value of the flags
-            penpot.flags.naturalChildOrdering = originalNaturalChildOrdering;
-            penpot.flags.throwValidationErrors = originalThrowValidationErrors;
+            // restore the original value of the flags once no execution is running anymore
+            this.runningExecutions--;
+            if (this.runningExecutions === 0) {
+                penpot.flags.naturalChildOrdering = this.originalNaturalChildOrdering;
+                penpot.flags.throwValidationErrors = this.originalThrowValidationErrors;
+            }
         }
 
         console.log("Code execution result:", result);
@@ -248,7 +261,7 @@ export class ExecuteCodeTaskHandler extends TaskHandler<ExecuteCodeTaskParams> {
         // return result and captured log
         let resultData: ExecuteCodeTaskResultData<any> = {
             result: result,
-            log: this.context.console.getLog(),
+            log: taskConsole.getLog(),
         };
         task.sendSuccess(resultData);
     }

@@ -4,16 +4,20 @@
 export class Task<TParams = any> {
     public isResponseSent: boolean = false;
 
+    public requestId: string;
+    public taskType: string;
+    public params: TParams;
+
     /**
      * @param requestId Unique identifier for the task request
      * @param taskType The type of the task to execute
      * @param params Task parameters/arguments
      */
-    constructor(
-        public requestId: string,
-        public taskType: string,
-        public params: TParams
-    ) {}
+    constructor(requestId: string, taskType: string, params: TParams) {
+        this.requestId = requestId;
+        this.taskType = taskType;
+        this.params = params;
+    }
 
     /**
      * Sends a task response back to the MCP server.

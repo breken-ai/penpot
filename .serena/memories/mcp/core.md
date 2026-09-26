@@ -100,3 +100,9 @@ For parallel devenvs, prefer same-origin MCP routing: each Penpot instance shoul
 - The plugin treats WebSocket close code `1008` (policy violation) as terminal: it stops auto-reconnecting and stays disconnected until the user explicitly reconnects. Other close codes keep the capped-backoff retry. The decision lives in `ReconnectPolicy.ts` (`shouldReconnectAfterClose`), kept as a pure module so it is unit-testable without DOM/CSS.
 - The MCP server emits `1008` for a duplicate connection on the same user token (`PluginBridge`) and for a missing `userToken` in multi-user mode.
 - A tab rejected with `1008` never reaches `connected`, so the frontend's 60s reconnect watcher (`start-reconnect-watcher` in `app.main.data.workspace.mcp`, started only on `connected`) does not engage; recovery is manual via "Connect here".
+
+## execute_code executions can overlap
+
+- The MCP server does not serialize tool calls, so several `executeCode` tasks can run in the plugin at once (e.g. parallel tool calls from the agent; `export_shape` and `import_image` also run as `executeCode`). `ExecuteCodeTaskHandler` therefore gives each execution its own console, so a task's `log` holds only its own output, while `storage` stays shared across executions.
+- The execution flags (`naturalChildOrdering`, `throwValidationErrors`) are set while any execution is running and restored to their previous values when the last one finishes. Saving and restoring them per execution would switch them off in the middle of a still-running execution.
+- The handler is covered by `node:test` tests (`src/ExecuteCodeTaskHandler.test.ts`), which run under `--experimental-strip-types`: keep its imports loadable in that mode (explicit `.ts` extensions, `import type` for type-only imports, no constructor parameter properties).
