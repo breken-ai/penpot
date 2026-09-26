@@ -101,6 +101,26 @@ describe("getImageInfo", () => {
     expect(info.orientation).toBe(1);
   });
 
+  it.each([5, 6, 7, 8])(
+    "reports the displayed dimensions of a JPEG with EXIF orientation %i (rotated by 90 degrees)",
+    async (orientation) => {
+      const buffer = await sharp({
+        create: { width: 120, height: 40, channels: 3, background: { r: 0, g: 0, b: 255 } },
+      })
+        .jpeg()
+        .withMetadata({ orientation })
+        .toBuffer();
+
+      const info = await getImageInfo(buffer, buffer.length);
+      expect(info.orientation).toBe(orientation);
+      expect({ width: info.width, height: info.height }).toEqual({ width: 40, height: 120 });
+
+      // the same size as the auto-oriented image that thumbnails are rendered from
+      const displayed = await sharp(buffer).rotate().toBuffer({ resolveWithObject: true });
+      expect({ width: displayed.info.width, height: displayed.info.height }).toEqual({ width: 40, height: 120 });
+    }
+  );
+
   it("throws on garbage data (sharp unsupported format)", async () => {
     const buffer = Buffer.alloc(100, 0xff);
     await expect(getImageInfo(buffer, buffer.length)).rejects.toThrow();

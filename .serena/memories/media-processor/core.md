@@ -65,7 +65,7 @@ media-processor/
 - `throwProcessing(code, hint)` — 503 errors for processing failures (e.g., resource limit kills)
 
 ### Image Processing
-- EXIF orientation applied before dimension validation and thumbnail generation
+- EXIF orientation applied before dimension validation and thumbnail generation; orientations 5-8 all rotate by 90 degrees (5 and 7 also mirror), so reported width/height are swapped for every one of them, matching the auto-oriented image sharp's `.rotate()` renders
 - sharp caching disabled to prevent unbounded memory growth
 - `withoutEnlargement: true` prevents upscaling small images
 

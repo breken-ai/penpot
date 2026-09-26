@@ -12,7 +12,8 @@ function orientationSwapDimensions(
   height: number,
   orientation: number
 ): { width: number; height: number } {
-  if (orientation === 6 || orientation === 8) {
+  // orientations 5-8 rotate the image by 90 degrees (5 and 7 also mirror it)
+  if (orientation >= 5 && orientation <= 8) {
     return { width: height, height: width };
   }
   return { width, height };
