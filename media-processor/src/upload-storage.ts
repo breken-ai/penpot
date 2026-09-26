@@ -48,10 +48,17 @@ export function createHybridStorage(opts: HybridStorageOptions): multer.StorageE
 
       ensureTempDir()
         .then((dir) => {
+          // the upload was aborted while the temp directory was being created
+          if (file.stream.destroyed) return;
+
           const filename = `${randomBytes(16).toString("hex")}${getExt(file.originalname)}`;
           const filepath = join(dir, filename);
 
           const ws = createWriteStream(filepath);
+
+          // set the path before writing, so multer can remove the partial file
+          // (via _removeFile) when the upload is aborted before it completes
+          file.path = filepath;
 
           file.stream.pipe(ws);
 

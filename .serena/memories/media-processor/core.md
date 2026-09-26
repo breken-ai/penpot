@@ -57,6 +57,7 @@ media-processor/
 - Font: prlimit wraps FontForge processes with memory (AS) and CPU time limits
 - Concurrency: p-queue limits concurrent requests (default 10)
 - Upload: hybrid storage — memory for files < 10MB, disk for larger; configurable via `PENPOT_MEDIA_PROCESSOR_MEMORY_THRESHOLD`
+- Disk uploads: the hybrid storage sets `file.path` before writing, because multer only removes (via `_removeFile`) the partial files of an aborted upload that already have a `path`; completed uploads are removed by `cleanupMiddleware` after the response.
 - Max file size: configurable (default 350MB)
 
 ### Error Handling

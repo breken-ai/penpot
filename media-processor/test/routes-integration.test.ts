@@ -12,6 +12,8 @@ import { configureFontLimits } from "../src/services/font.js";
 import { configureUploadLimits } from "../src/upload.js";
 import sharp from "sharp";
 import { readdir, rm, stat } from "node:fs/promises";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -168,6 +170,47 @@ describe("HTTP upload cleanup", () => {
     const afterFiles = await getTempFiles();
     const newFiles = afterFiles.filter((f) => !beforeFiles.includes(f));
     expect(newFiles.length).toBe(0);
+  });
+
+  it("removes the partial disk-backed file of an upload aborted by the client", async () => {
+    const server = app.listen(0);
+    try {
+      const { port } = server.address() as AddressInfo;
+      const beforeFiles = await getTempFiles();
+
+      // the client sends part of a file and then drops the connection
+      await new Promise<void>((resolve) => {
+        const req = http.request({
+          port,
+          method: "POST",
+          path: "/api/image/info",
+          headers: {
+            "x-shared-key": "test-key",
+            "content-type": "multipart/form-data; boundary=XX",
+            "content-length": "100000",
+          },
+        });
+        req.on("error", () => resolve());
+        req.write(
+          '--XX\r\nContent-Disposition: form-data; name="file"; filename="partial.png"\r\n' +
+            "Content-Type: image/png\r\n\r\n" +
+            "x".repeat(5000)
+        );
+        setTimeout(() => {
+          req.destroy();
+          resolve();
+        }, 300);
+      });
+
+      // let the server notice the abort and clean up
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const afterFiles = await getTempFiles();
+      const newFiles = afterFiles.filter((f) => !beforeFiles.includes(f));
+      expect(newFiles).toEqual([]);
+    } finally {
+      server.close();
+    }
   });
 
   it("removes disk-backed file after timeout", async () => {
