@@ -33,6 +33,6 @@
 ## Modal/UI behavior
 
 - Modal URL preparation differs by manifest version: v1 uses query string parameters, v2 puts parameters in the URL hash.
-- `openModal` is idempotent for the same iframe source and avoids reopening when the target URL is already displayed.
+- `openModal` is idempotent for the same iframe source and avoids reopening when the target URL is already displayed. For a different URL it replaces the modal: the previous one is removed with its listeners and the load counter resets, since any later `load` of the current modal is treated as a UI reload that re-evaluates the plugin code.
 - Modal permissions are derived from manifest permissions (`allow:downloads`, `clipboard:read`, `clipboard:write`).
 - `resizeModal` clamps to at least 200x200 and at most the window minus margins, adjusting transform so the modal remains in the viewport.

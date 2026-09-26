@@ -159,6 +159,55 @@ describe('createPluginManager', () => {
     expect(openUIApi).toHaveBeenCalledTimes(1);
   });
 
+  it('should replace the open modal when the UI is opened with another URL', async () => {
+    const createMockModal = (src: string) => ({
+      setTheme: vi.fn(),
+      remove: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      getAttribute: vi.fn().mockReturnValue(src),
+    });
+    const firstModal = createMockModal('https://example.com/first');
+    const secondModal = createMockModal('https://example.com/second');
+
+    vi.mocked(prepareUrl)
+      .mockReturnValueOnce('https://example.com/first')
+      .mockReturnValueOnce('https://example.com/second');
+    vi.mocked(openUIApi)
+      .mockReturnValueOnce(firstModal as unknown as PluginModalElement)
+      .mockReturnValueOnce(secondModal as unknown as PluginModalElement);
+
+    const pluginManager = await createPluginManager(
+      mockContext,
+      manifest,
+      onCloseCallback,
+      onReloadModal,
+    );
+
+    pluginManager.openModal('Test Modal', '/first');
+    const firstLoad = firstModal.addEventListener.mock.calls.find(
+      (call) => call[0] === 'load',
+    )?.[1];
+    await firstLoad();
+
+    pluginManager.openModal('Test Modal', '/second');
+
+    // the first modal is removed instead of staying on screen next to the new one
+    expect(firstModal.remove).toHaveBeenCalled();
+    expect(pluginManager.getModal()).toBe(secondModal);
+
+    // the first load of the new modal is not a reload of the plugin
+    const secondLoad = secondModal.addEventListener.mock.calls.find(
+      (call) => call[0] === 'load',
+    )?.[1];
+    await secondLoad();
+    expect(onReloadModal).not.toHaveBeenCalled();
+
+    // closing the plugin removes the new modal
+    pluginManager.close();
+    expect(secondModal.remove).toHaveBeenCalled();
+  });
+
   it('should handle theme changes and update the modal theme', async () => {
     const pluginManager = await createPluginManager(
       mockContext,

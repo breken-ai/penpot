@@ -101,6 +101,15 @@ export async function createPluginManager(
       return;
     }
 
+    // replace a modal showing another URL instead of leaving it on screen;
+    // the first load of the new modal is not a reload of the plugin
+    if (modal) {
+      modal.removeEventListener('close', closePlugin);
+      modal.removeEventListener('load', onLoadModal);
+      modal.remove();
+      loaded = false;
+    }
+
     modal = openUIApi(
       name,
       modalUrl,
