@@ -35,6 +35,7 @@ describe('createSandbox', () => {
     mockPlugin = {
       code: 'console.log("Plugin running");',
       timeouts: new Set<ReturnType<typeof setTimeout>>(),
+      intervals: new Set<ReturnType<typeof setInterval>>(),
     } as unknown as Awaited<ReturnType<typeof createPluginManager>>;
 
     vi.mocked(createApi).mockReturnValue({
@@ -80,6 +81,42 @@ describe('createSandbox', () => {
     sandbox.compartment.globalThis['clearTimeout'](timeoutId);
 
     expect(mockPlugin.timeouts.has(timeoutId)).toBe(false);
+  });
+
+  it('should pass extra setTimeout arguments to the handler', () => {
+    vi.useFakeTimers();
+    try {
+      const sandbox = createSandbox(mockPlugin);
+      const handler = vi.fn();
+
+      sandbox.compartment.globalThis['setTimeout'](handler, 100, 'a', 2);
+      vi.advanceTimersByTime(100);
+
+      expect(handler).toHaveBeenCalledWith('a', 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('should pass extra setInterval arguments to the handler', () => {
+    vi.useFakeTimers();
+    try {
+      const sandbox = createSandbox(mockPlugin);
+      const handler = vi.fn();
+
+      const intervalId = sandbox.compartment.globalThis['setInterval'](
+        handler,
+        100,
+        'a',
+        2,
+      );
+      vi.advanceTimersByTime(100);
+      sandbox.compartment.globalThis['clearInterval'](intervalId);
+
+      expect(handler).toHaveBeenCalledWith('a', 2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('should clean the globalThis on cleanGlobalThis', () => {

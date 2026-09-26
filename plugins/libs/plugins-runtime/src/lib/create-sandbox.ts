@@ -112,11 +112,11 @@ export function createSandbox(
     penpot: proxyApi,
     fetch: ses.harden(safeFetch),
     setTimeout: ses.harden(
-      (...[handler, timeout]: Parameters<typeof setTimeout>) => {
+      (...[handler, timeout, ...args]: Parameters<typeof setTimeout>) => {
         const wrappedHandler = wrapHandler(
           typeof handler === 'function' ? handler : () => {},
         );
-        const timeoutId = setTimeout(wrappedHandler, timeout);
+        const timeoutId = setTimeout(wrappedHandler, timeout, ...args);
 
         plugin.timeouts.add(timeoutId);
 
@@ -129,11 +129,11 @@ export function createSandbox(
       plugin.timeouts.delete(id);
     }),
     setInterval: ses.harden(
-      (...[handler, interval]: Parameters<typeof setInterval>) => {
+      (...[handler, interval, ...args]: Parameters<typeof setInterval>) => {
         const wrappedHandler = wrapHandler(
           typeof handler === 'function' ? handler : () => {},
         );
-        const intervalId = setInterval(wrappedHandler, interval);
+        const intervalId = setInterval(wrappedHandler, interval, ...args);
 
         plugin.intervals.add(intervalId);
 

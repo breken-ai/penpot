@@ -20,7 +20,7 @@
 
 - The runtime uses SES compartments. Public API return values are passed through `ses.safeReturn` before crossing back to plugin code.
 - Plugin `fetch` is sanitized: credentials are omitted and Authorization is blanked. The exposed response only includes ok/status/statusText/url/text/json.
-- Timer callbacks are wrapped to mark plugin-originated errors, and timeout/interval IDs are tracked so plugin close can clear them.
+- Timer callbacks are wrapped to mark plugin-originated errors, and timeout/interval IDs are tracked so plugin close can clear them. The sandbox timers keep the standard signature: arguments after the delay are passed to the callback; string handlers are not evaluated (replaced by a no-op).
 - Plugin-originated errors are tracked in a WeakMap instead of mutating error objects, because SES can freeze errors.
 - Closing a plugin removes public API keys from the compartment globalThis.
 
