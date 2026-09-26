@@ -161,3 +161,40 @@ test("findShapes — excludes the root shape itself from the results", () => {
 
     assert.ok(!result.includes(root as any));
 });
+
+// ---------------------------------------------------------------------------
+// getTokenSet
+// The Penpot token API creates new token proxies on every read of
+// `TokenSet.tokens`, so a token obtained earlier is never the identical
+// object found in a later read.
+// ---------------------------------------------------------------------------
+
+function makeTokenSet(id: string, name: string, tokenNames: string[]) {
+    return {
+        id,
+        name,
+        get tokens() {
+            return tokenNames.map((tokenName) => ({ id: `${id}/${tokenName}`, name: tokenName }));
+        },
+    };
+}
+
+function mockTokenCatalog(sets: any[]) {
+    (globalThis as any).penpot = { library: { local: { tokens: { sets } } } };
+}
+
+test("getTokenSet — finds the set of a token obtained from an earlier read", () => {
+    const colors = makeTokenSet("set-colors", "colors", ["primary", "secondary"]);
+    const spacing = makeTokenSet("set-spacing", "spacing", ["small", "large"]);
+    mockTokenCatalog([colors, spacing]);
+
+    const token = PenpotUtils.findTokenByName("large");
+
+    assert.equal(PenpotUtils.getTokenSet(token), spacing);
+});
+
+test("getTokenSet — returns null for a token that is in no set", () => {
+    mockTokenCatalog([makeTokenSet("set-colors", "colors", ["primary"])]);
+
+    assert.equal(PenpotUtils.getTokenSet({ id: "other/primary", name: "primary" }), null);
+});

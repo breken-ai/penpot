@@ -100,3 +100,7 @@ For parallel devenvs, prefer same-origin MCP routing: each Penpot instance shoul
 - The plugin treats WebSocket close code `1008` (policy violation) as terminal: it stops auto-reconnecting and stays disconnected until the user explicitly reconnects. Other close codes keep the capped-backoff retry. The decision lives in `ReconnectPolicy.ts` (`shouldReconnectAfterClose`), kept as a pure module so it is unit-testable without DOM/CSS.
 - The MCP server emits `1008` for a duplicate connection on the same user token (`PluginBridge`) and for a missing `userToken` in multi-user mode.
 - A tab rejected with `1008` never reaches `connected`, so the frontend's 60s reconnect watcher (`start-reconnect-watcher` in `app.main.data.workspace.mcp`, started only on `connected`) does not engage; recovery is manual via "Connect here".
+
+## PenpotUtils and Plugin API proxies
+
+- Plugin API getters return new proxy objects on every read (e.g. each read of `TokenSet.tokens` creates new token proxies), so helpers in `packages/plugin/src/PenpotUtils.ts` must compare API objects by `id`, never by identity (`===`, `includes`, `indexOf`). See `mem:frontend/plugin-api-to-cljs-binding` for the proxy model.

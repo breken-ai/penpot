@@ -507,6 +507,9 @@ export class PenpotUtils {
     /**
      * Gets the token set that contains the given token.
      *
+     * Tokens are matched by ID: reading `TokenSet.tokens` creates new token objects on
+     * every access, so the given token is never the identical object.
+     *
      * @param token - The token whose set to find
      * @returns The TokenSet containing this token, or null if not found
      */
@@ -514,7 +517,7 @@ export class PenpotUtils {
         const tokenCatalog = penpot.library.local.tokens;
 
         for (const set of tokenCatalog.sets) {
-            if (set.tokens.includes(token)) {
+            if (set.tokens.some((setToken) => setToken.id === token.id)) {
                 return set;
             }
         }
