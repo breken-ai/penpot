@@ -54,6 +54,9 @@ export function execCommand(
         timeout: effectiveTimeout,
         encoding: encoding === "buffer" ? null : encoding,
         signal: options?.signal,
+        // woff2sfnt writes the whole converted font to stdout, so the default 1 MiB
+        // limit would reject any larger font; allow up to the font memory limit
+        maxBuffer: fontProcessMem * 1024 * 1024,
       },
       (err, stdout, stderr) => {
         if (err) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { readFile, writeFile, rm } from "node:fs/promises";
+import { readFile, writeFile, rm, mkdtemp, chmod } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { convertFont, execCommand } from "../src/services/font.js";
@@ -285,6 +285,31 @@ describe("convertFont", () => {
   });
 });
 
+describe("convertFont with large fonts", () => {
+  it("woff→ttf returns an sfnt larger than 1 MiB", async () => {
+    // stand-in for woff2sfnt that writes a 3 MiB TrueType sfnt to stdout, like a large (e.g. CJK) font
+    const binDir = await mkdtemp(join(tmpdir(), "penpot.test-bin."));
+    const size = 3 * 1024 * 1024;
+    await writeFile(
+      join(binDir, "woff2sfnt"),
+      `#!/bin/sh\nprintf '\\000\\001\\000\\000'\nhead -c ${size - 4} /dev/zero\n`
+    );
+    await chmod(join(binDir, "woff2sfnt"), 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${binDir}:${originalPath}`;
+    try {
+      const result = await convertFont(woffData, "font/woff", "font/ttf");
+
+      expect(result).toBeInstanceOf(Buffer);
+      expect(result!.length).toBe(size);
+    } finally {
+      process.env.PATH = originalPath;
+      await rm(binDir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("execCommand", () => {
   it("preserves killed and signal properties from child process errors", async () => {
     try {
@@ -306,5 +331,13 @@ describe("execCommand", () => {
       expect(error).toBeInstanceOf(Error);
       expect(error.signal).toBe("SIGKILL");
     }
+  });
+
+  it("returns stdout larger than 1 MiB (woff2sfnt writes the whole font to stdout)", async () => {
+    const size = 3 * 1024 * 1024;
+    const { stdout } = await execCommand("head", ["-c", String(size), "/dev/zero"], 5000, { encoding: "buffer" });
+
+    expect(stdout).toBeInstanceOf(Buffer);
+    expect((stdout as Buffer).length).toBe(size);
   });
 });

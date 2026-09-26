@@ -73,6 +73,7 @@ media-processor/
 - Supported formats: TTF, OTF, WOFF, WOFF2
 - SFNT type detected via magic bytes (0x4f54544f = OTF, 0x00010000 = TTF)
 - Temp files cleaned up in finally blocks (best-effort)
+- `woff2sfnt` writes the converted font to stdout, so `execCommand` sets `maxBuffer` (the font memory limit, `PENPOT_MEDIA_PROCESSOR_FONT_PROCESS_MEM`); Node's default 1 MiB would reject every larger font as invalid.
 
 ## Commands
 
