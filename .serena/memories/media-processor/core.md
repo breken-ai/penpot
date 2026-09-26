@@ -63,6 +63,7 @@ media-processor/
 - `throwValidation(code, hint)` — 400 errors for invalid input
 - `throwRestriction(code, hint)` — 413 errors for resource limits exceeded
 - `throwProcessing(code, hint)` — 503 errors for processing failures (e.g., resource limit kills)
+- Every request that reached the queue holds a p-queue slot until `res.locals.releaseQueue()` runs (route `finally` blocks, or `errorHandler`). `errorHandler` must release it on every path, including when headers were already sent: after the timeout middleware answers 504 and destroys the request, multer still reports `Request aborted` through `errorHandler`, and a skipped release leaks the slot for good (with all slots leaked, every request times out).
 
 ### Image Processing
 - EXIF orientation applied before dimension validation and thumbnail generation

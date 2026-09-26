@@ -12,6 +12,8 @@ import { configureFontLimits } from "../src/services/font.js";
 import { configureUploadLimits } from "../src/upload.js";
 import sharp from "sharp";
 import { readdir, rm, stat } from "node:fs/promises";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -292,5 +294,68 @@ describe("HTTP quality parameter clamping", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/image\/jpeg/);
+  });
+});
+
+describe("HTTP queue slot after a timed-out upload", () => {
+  it("serves the next request after an upload times out mid-transfer", async () => {
+    configureImageLimits({ maxPixels: 128_000_000, maxWidth: 16384, maxHeight: 16384 });
+    configureUploadLimits({ maxFileSize: 10 * 1024 * 1024, memoryThreshold: 10 });
+
+    // a single processing slot, so a leaked slot blocks every later request
+    const app = express();
+    app.use(timeoutMiddleware(300));
+    app.use("/api/image", sharedKeyAuth("test-key"), createQueueMiddleware(1), createImageRoutes());
+    app.use(errorHandler);
+
+    const server = app.listen(0);
+    try {
+      const { port } = server.address() as AddressInfo;
+
+      // an upload whose body stops arriving: the request times out while multer is still reading it
+      const stalledStatus = await new Promise<number>((resolve, reject) => {
+        const req = http.request(
+          {
+            port,
+            method: "POST",
+            path: "/api/image/info",
+            headers: {
+              "x-shared-key": "test-key",
+              "content-type": "multipart/form-data; boundary=XX",
+              "content-length": "100000",
+            },
+          },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          }
+        );
+        req.on("error", reject);
+        req.write(
+          '--XX\r\nContent-Disposition: form-data; name="file"; filename="a.png"\r\n' +
+            "Content-Type: image/png\r\n\r\npartial"
+        );
+      });
+      expect(stalledStatus).toBe(504);
+
+      // let the aborted upload settle
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      const imageBuffer = await sharp({
+        create: { width: 4, height: 4, channels: 3, background: { r: 255, g: 0, b: 0 } },
+      })
+        .png()
+        .toBuffer();
+
+      const response = await request(server)
+        .post("/api/image/info")
+        .set("x-shared-key", "test-key")
+        .attach("file", imageBuffer, { filename: "small.png", contentType: "image/png" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.width).toBe(4);
+    } finally {
+      server.close();
+    }
   });
 });

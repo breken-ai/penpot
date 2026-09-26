@@ -23,6 +23,9 @@ function releaseSlot(res: Response): void {
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
   if (res.headersSent) {
+    // the response was already sent (e.g. the timeout's 504 before multer reported the
+    // aborted upload), but the request still holds its processing slot
+    releaseSlot(res);
     return;
   }
 

@@ -213,6 +213,17 @@ describe("errorHandler", () => {
     expect(resWithHeadersSent.json).not.toHaveBeenCalled();
   });
 
+  it("calls releaseQueue if headers already sent", () => {
+    const releaseQueue = vi.fn();
+    const resWithHeadersSent = { ...res, headersSent: true, locals: { releaseQueue } } as any;
+
+    // e.g. multer's "Request aborted" after the timeout middleware already answered 504
+    errorHandler(new Error("Request aborted"), mockReq(), resWithHeadersSent, next);
+
+    expect(releaseQueue).toHaveBeenCalled();
+    expect(resWithHeadersSent.status).not.toHaveBeenCalled();
+  });
+
   it("calls releaseQueue for ProcessingError", () => {
     const releaseQueue = vi.fn();
     const resWithLocals = { ...res, locals: { releaseQueue } } as any;
