@@ -52,6 +52,17 @@ describe("Text", () => {
     expect(removeForward("Hello, World!", 6)).toBe("Hello,World!");
   });
 
+  test("`removeBackward` should remove a whole astral character (surrogate pair)", () => {
+    // "😀" is one character stored as two UTF-16 code units
+    expect(removeBackward("Hi😀", 4)).toBe("Hi");
+    expect(removeBackward("😀!", 2)).toBe("!");
+  });
+
+  test("`removeForward` should remove a whole astral character (surrogate pair)", () => {
+    expect(removeForward("😀Hi", 0)).toBe("Hi");
+    expect(removeForward("Hi😀!", 2)).toBe("Hi!");
+  });
+
   test("`removeSlice` should remove a part of a text", () => {
     expect(removeSlice("Hello, World!", 7, 12)).toBe("Hello, !");
   });

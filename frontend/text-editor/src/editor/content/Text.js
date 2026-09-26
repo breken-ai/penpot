@@ -60,7 +60,22 @@ export function replaceWith(str, startOffset, endOffset, text) {
 }
 
 /**
- * Removes text backward from specified offset.
+ * Returns whether the two UTF-16 code units at the given offset form a
+ * surrogate pair (one astral character, such as most emoji).
+ *
+ * @param {string} str
+ * @param {number} offset
+ * @returns {boolean}
+ */
+function isSurrogatePairAt(str, offset) {
+  const high = str.charCodeAt(offset);
+  const low = str.charCodeAt(offset + 1);
+  return high >= 0xd800 && high <= 0xdbff && low >= 0xdc00 && low <= 0xdfff;
+}
+
+/**
+ * Removes the character before the specified offset. A character made of
+ * a surrogate pair is removed as a whole.
  *
  * @param {string} str
  * @param {number} offset
@@ -72,11 +87,13 @@ export function removeBackward(str, offset) {
   if (offset === 0) {
     return str;
   }
-  return str.slice(0, offset - 1) + str.slice(offset);
+  const length = offset >= 2 && isSurrogatePairAt(str, offset - 2) ? 2 : 1;
+  return str.slice(0, offset - length) + str.slice(offset);
 }
 
 /**
- * Removes text forward from specified offset.
+ * Removes the character after the specified offset. A character made of
+ * a surrogate pair is removed as a whole.
  *
  * @param {string} str
  * @param {number} offset
@@ -85,7 +102,8 @@ export function removeBackward(str, offset) {
 export function removeForward(str, offset) {
   tryString(str);
   tryOffset(offset);
-  return str.slice(0, offset) + str.slice(offset + 1);
+  const length = isSurrogatePairAt(str, offset) ? 2 : 1;
+  return str.slice(0, offset) + str.slice(offset + length);
 }
 
 /**

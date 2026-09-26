@@ -553,6 +553,24 @@ describe("SelectionController", () => {
     );
   });
 
+  test("`removeBackwardText` should remove a whole emoji and keep the caret before it", () => {
+    const text = "Hi😀 there";
+    const textEditorMock = TextEditorMock.createTextEditorMockWithText(text);
+    const root = textEditorMock.root;
+    const selection = document.getSelection();
+    const selectionController = new SelectionController(
+      textEditorMock,
+      selection,
+    );
+    const textNode = root.firstChild.firstChild.firstChild;
+    // caret right after the emoji ("Hi😀|")
+    focus(selection, textEditorMock, textNode, 4);
+    selectionController.removeBackwardText();
+    expect(textEditorMock.root.textContent).toBe("Hi there");
+    expect(selection.focusNode).toBe(textNode);
+    expect(selection.focusOffset).toBe(2);
+  });
+
   test("`removeBackwardText` should remove text in backward direction (backspace) and create a new empty paragraph when there's nothing left", () => {
     const textEditorMock = TextEditorMock.createTextEditorMockWithText("H");
     const root = textEditorMock.root;

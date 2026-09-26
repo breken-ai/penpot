@@ -1266,11 +1266,13 @@ export class SelectionController extends EventTarget {
   removeBackwardText() {
     this.#textNodeIterator.currentNode = this.focusNode;
 
-    // Remove the character from the string.
+    // Remove the character from the string (two code units for a
+    // surrogate pair).
     const removedData = removeBackward(
       this.focusNode.nodeValue,
       this.focusOffset,
     );
+    const removedLength = this.focusNode.nodeValue.length - removedData.length;
 
     if (this.focusNode.nodeValue !== removedData) {
       this.focusNode.nodeValue = removedData;
@@ -1278,8 +1280,8 @@ export class SelectionController extends EventTarget {
 
     // If the focusNode has content we don't need to do
     // anything else.
-    if (this.focusOffset - 1 > 0) {
-      return this.collapse(this.focusNode, this.focusOffset - 1);
+    if (this.focusOffset - removedLength > 0) {
+      return this.collapse(this.focusNode, this.focusOffset - removedLength);
     }
 
     const paragraph = this.focusParagraph;
@@ -1312,7 +1314,7 @@ export class SelectionController extends EventTarget {
       );
     }
 
-    return this.collapse(this.focusNode, this.focusOffset - 1);
+    return this.collapse(this.focusNode, this.focusOffset - removedLength);
   }
 
   /**

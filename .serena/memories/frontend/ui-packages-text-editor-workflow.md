@@ -32,3 +32,6 @@ From `frontend/text-editor`:
 - Frontend root `check-fmt:js` covers stories, Playwright scripts, frontend scripts, and `text-editor/**/*.js`; it does not replace package-specific builds/tests.
 - Changes to shared UI package exports should be validated both in the package build and in the consuming app/Storybook path.
 - Changes that alter text rendering/editing can involve `frontend/text-editor`, `render-wasm`, CLJS text integration, and `mem:common/text-subtleties`; verify the runtime that actually owns the changed behavior.
+## Text editing invariants
+
+- Text node offsets are UTF-16 code units. Character-level edits in `frontend/text-editor/src/editor/content/Text.js` (`removeBackward`/`removeForward`) remove a surrogate pair (emoji and other astral characters) as a whole, and `SelectionController` moves the caret by the number of units actually removed; never slice or step a single unit, or a lone surrogate (rendered as �) is left behind.
